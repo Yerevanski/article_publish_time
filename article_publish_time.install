@@ -1,0 +1,5 @@
+<?php
+
+function article_publish_time_install() {
+  \Drupal::service('module_installer')->install(['devel_generate']);
+}

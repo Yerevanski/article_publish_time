@@ -1,0 +1,64 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\Node;
+
+function article_publish_time_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+    switch ($form_id) {
+      case 'node_article_form':
+      case 'node_article_edit_form' :
+      $form['actions']['update_date'] = array(
+        '#type' => 'submit',
+        '#submit' => array('update_date'),
+        '#value' => t('Update Article Publish Date'),
+        '#weight' => 999,
+        '#button_type' => 'update-date',
+      );
+      break;
+  }
+}
+
+function update_date(&$form, FormStateInterface $form_state) {
+  $nids = \Drupal::entityQuery('node')
+    ->condition('type', 'article')
+    ->sort('created', 'ASC')
+    ->execute();
+
+  $batch = array(
+    'title' => t('Update Date...'),
+    'operations' => array(
+      array('processUpdate', array($nids)),
+    ),
+    'finished' => 'finishCallback',
+  );
+  batch_set($batch);
+
+}
+
+function processUpdate($nids, &$context) {
+  $message = 'Update date...';
+  $results = array();
+  $date = \Drupal::time()->getCurrentTime();
+  foreach ($nids as $nid) {
+    $node = Node::load($nid);
+    $node->set('created', $date);
+    $results[] = $node->save();
+  }
+  $context['message'] = $message;
+  $context['results'] = $results;
+}
+
+function finishCallback($success, $results, $operations) {
+  // The 'success' parameter means no fatal PHP errors were detected. All
+  // other error management should be handled using 'results'.
+  if ($success) {
+    $message = \Drupal::translation()->formatPlural(
+      count($results),
+      'One post processed.', '@count posts processed.'
+    );
+  }
+  else {
+    $message = t('Finished with an error.');
+  }
+  \Drupal::messenger()->addStatus($message);
+}
